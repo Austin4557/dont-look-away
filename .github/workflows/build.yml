@@ -12,6 +12,10 @@ jobs:
         with: { distribution: temurin, java-version: '25' }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '9.5.0' }
+      - name: Generate stalker texture
+        run: |
+          python -m pip install pillow
+          python tools/generate_stalker.py
       - run: gradle build --stacktrace
       - uses: actions/upload-artifact@v4
         with:
