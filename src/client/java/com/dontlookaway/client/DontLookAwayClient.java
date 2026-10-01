@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -29,7 +30,14 @@ public final class DontLookAwayClient implements ClientModInitializer {
             double agitation = stalker.distance < 8.0 ? 2.8 : stalker.distance < 16.0 ? 1.6 : 0.8;
             int sway = (int)(Math.sin(stalker.age * 0.12) * agitation);
             int x = sw / 2 - size / 2 + (int)(difference / 31.0F * sw * 0.32F) + sway;
-            int y = sh - size - Math.max(4, sh / 18);
+            int bob = stalker.distance < 8.0 ? (int)(Math.sin(stalker.age * 0.21) * 3.0) : stalker.distance < 16.0 ? (int)(Math.sin(stalker.age * 0.15) * 2.0) : 0;
+            int y = sh - size - Math.max(4, sh / 18) + bob;
+            if (stalker.catchTicks > 0) {
+                graphics.fill(0, 0, sw, sh, 0xD9000000);
+                size = Math.min(sh, (int)(sh * 0.96));
+                x = sw / 2 - size / 2;
+                y = sh / 2 - size / 2;
+            }
             graphics.blit(RenderPipelines.GUI_TEXTURED, STALKER_TEXTURE, x, y, 0.0F, 0.0F, size, size, 512, 512);
         });
 
@@ -74,6 +82,7 @@ public final class DontLookAwayClient implements ClientModInitializer {
         private Vec3 lastPlayerPosition;
         private int age;
         private boolean watched;
+        private int catchTicks;
 
         StalkerEncounter(Minecraft client, ThreadLocalRandom rng) {
             distance = rng.nextDouble(28.0, 42.0);
@@ -101,9 +110,16 @@ public final class DontLookAwayClient implements ClientModInitializer {
             // Running away can still save you. Looking at it is defensive, not a guaranteed win.
             if (moved > 0.18 && lookDifference > 105.0F) distance += 0.18;
 
-            // Escape, catch, or timeout. Rendering/catch presentation comes next.
+            if (catchTicks > 0) return --catchTicks <= 0;
             if (distance >= 52.0) return true;
-            if (distance <= 1.8) return true;
+            if (distance <= 1.8) {
+                distance = 1.0;
+                watched = true;
+                catchTicks = 12;
+                client.player.playSound(SoundEvents.ENDERMAN_STARE, 0.72F, 0.74F);
+                client.player.playSound(SoundEvents.GHAST_SCREAM, 0.58F, 1.38F);
+                return false;
+            }
             return --lifetime <= 0;
         }
 
